@@ -1,0 +1,197 @@
+#!/usr/bin/env python2.7
+#
+#  Copyright 2010 Armin Kuster <akuster@kama-aina.net>
+#
+#  This script is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License version 2 as
+#  published by the Free Software Foundation.
+#
+# ex:ts=4:sw=4:sts=4:et
+# -*- tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*-
+
+import os
+import sys
+import pprint
+import getopt
+
+sys.path.insert(0, os.path.join('/usr', 'local', 'lib', 'python2.7'))
+sys.path.insert(0, os.path.join('/usr', 'local', 'lib', 'python2.7', 'site-packages'))
+
+from Nvd import NvdCve
+
+'''
+nvdcve-modified.xml includes all recently published and recently updated vulnerabilities
+nvdcve-recent.xml includes all recently published vulnerabilities
+nvdcve-2002.xml includes vulnerabilities prior to and including 2002.
+'''
+
+def usage():
+    print """
+usage: nvdcve <options>
+options:
+            -a                  : add 
+            -c                  : config file
+            -d                  : Download nvd xml files
+            -D                  : Debug , more D's more detail
+            -f                  : output format <raw, cve, nvd>
+            -h, -H, --help, -?  : help
+            -i                  : Initialize DB
+            -m                  : modified
+            -o                  : search for Cve with options:
+                                    vendor
+                                    prod
+                                    start
+                                    stop
+                                    yr
+            -r                  : recent
+            -s                  : search for a CVE #
+            -T                  : Test url
+            -u                  : Use Url
+    """
+
+def main(argv):
+    debug = 0
+    urls = None
+    config_file = None
+    url_type = 'all'
+    db_init = False
+    import_data = False
+    search = True
+    search_ed = None
+    downloading = False
+    display_type = 'default'
+    output = False
+    search_opts = []
+
+    try:
+        opts, args = getopt.getopt(argv[1:], "ac:dDf:himo:rs:Tu:w?",["help"])
+    except getopt.GetoptError:
+        usage()
+        sys.exit(9)
+
+    if len(argv) == 1:
+        usage()
+        sys.exit(9)
+
+    for o, a in opts:
+        if o in ('-h','-?','-H', '--help'):
+            usage()
+            sys.exit(0)
+
+        if o == '-c':
+            config_file = a
+
+        if o == '-d':
+            downloading = True
+
+        if o == '-D':
+            debug += 1
+
+        if o == '-f':
+            if a.lower() not in ['raw', 'nvd', 'cve']:
+                usage()
+                sys.exit(1)
+            output = True
+            display_type = a
+
+        if o == '-m':
+            url_type = "m"
+        
+        if o == '-o':
+            search_opts.append(a)
+
+        if o == '-r':
+            url_type = "r"
+
+        if o == '-T':
+            url_type = "t"
+
+        if o == '-i':
+            db_init = True
+
+        if o == '-a':
+            import_data = True
+
+        if o == '-s':
+            search = True
+            search_ed = a
+
+        if o == '-u':
+            urls = []
+            url_type = None
+            urls.append(a)
+
+    if config_file == None:
+        config_dir=("%s/.%s" % (os.environ['HOME'], 'nvdcve'))
+        config_file=("%s/%s.conf" % (config_dir, 'nvdcve'))
+
+    x = NvdCve.NvdCve(debug, config_file)
+
+    if db_init:
+        x.initialize()
+        sys.exit(0)
+
+    if search_opts:
+
+        good, skipped, total, cves = x.search_opts(search_opts)
+
+        print "Results of search"
+        for cve in cves:
+            print cve
+
+        print "Number of CVE's process %s/%s" % (good, total)
+
+    if search and not import_data and not db_init and not downloading:
+        ret = x.search(search_ed)
+
+        if ret == 1:
+            print "%s not in database." % argv[1:][0]
+
+        if ret == 2:
+            print "Error %s" % ret
+
+        if display_type == 'cve':
+            x.cve_display(ret)
+        elif display_type == 'nvd':
+            x.nvd_display(ret)
+        else:
+            x.display(ret)
+
+        sys.exit(0)
+
+    if url_type == 'm':
+        print 'nvdcve-modified.xml includes all recently published and recently updated vulnerabilities'
+        urls = x.modified_url()
+
+    if url_type == 'r':
+        print 'nvdcve-recent.xml includes all recently published vulnerabilities'
+        urls = x.recent_url()
+
+    if url_type == 't':
+        print "Using test url"
+        urls = x.test_url()
+
+    if url_type == 'all':
+        urls = x.all_urls()
+
+    for url in urls:
+        if import_data:
+            print "Importing data %s" % url
+            mapping = x.data_import(url)
+            try:
+                if import_data:
+                    x.db_add(mapping)
+                else:
+                    pprint.pprint(mapping)
+            except KeyboardInterrupt:
+                pass
+
+        if downloading:
+            print "Downloading invoked"
+            try:
+                x.download(url)
+            except KeyboardInterrupt:
+                pass
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
