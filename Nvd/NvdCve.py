@@ -57,10 +57,13 @@ class NvdCve(NvdCveXml, NvdCveDb):
 
 
     def all_urls(self):
-        if not os.path.isfile(self.config_file):
-            urls = Constants.nvdcve_urls
-        else:
-            urls = self.config.get('All')
+        from time import gmtime, strftime 
+
+        urls = []
+        end_yr = int(strftime("%Y", gmtime()))
+        for d in range(2002,(end_yr+1)):
+            urls.append("https://nvd.nist.gov/download/nvdcve-%s.xml.gz" % d)
+
         return urls
 
     def initialize(self):
