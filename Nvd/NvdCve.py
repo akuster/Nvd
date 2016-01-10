@@ -202,7 +202,9 @@ class NvdCve(NvdCveXml, NvdCveDb):
                 (datum['Entry']['CVSS_score'], datum['Entry']['severity'])
 
     def download(self, url):
-        import urllib2
+        import urllib
+        import gzip
+
         if not os.path.isdir(Constants.data):
             os.mkdir(Constants.data)
 
@@ -219,7 +221,7 @@ class NvdCve(NvdCveXml, NvdCveDb):
         print "Downloading from %s" % url
 
         try:
-            sock =  urllib2.urlopen(url)
+            urllib.urlretrieve(url, filename=dest)
         except urllib2.URLError:
             print "HTTP: connection timed out for %s" % url
             sys.exit(2)
@@ -227,13 +229,14 @@ class NvdCve(NvdCveXml, NvdCveDb):
             print "HTTP: check URL %s definition" % url
             raise
 
-        print "Saving as %s" % dest
+        with gzip.open(dest, 'rb') as f:
+            file_content = f.read()
 
-        fd = open(dest, 'wb')
-        for s in sock.readlines():
-            fd.write(s)
-        fd.close()
-        sock.close()
+        unzip_fname = dest[:-3]
+        with open(unzip_fname, 'w') as f:
+            f.write(file_content)
+
+        print "Saving as %s to %s" % (dest, unzip_fname)
 
     def data_import(self, url, local=True):
         if local:
