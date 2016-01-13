@@ -71,8 +71,6 @@ class NvdCve(NvdCveXml, NvdCveDb):
             print "Data Base exists!"
             os.remove(self.db_name)
 
-        self.db_init()
-
     def search(self, argv):
         if argv == None:
             return -1
@@ -103,20 +101,24 @@ class NvdCve(NvdCveXml, NvdCveDb):
     def display(self, datum):
         vendors = []
         products = []
+
         for order in self.order:
             if order == 'Entry':
+                print self.entry_db.data_layout
+
                 for i, array in enumerate(self.entry_db.data_layout):
+                    print array[0]
                     if array[0] == "Vendor":
-                        vendors = datum[order][array[0]].split(',')
+                        vendors = datum[order][0][array[1]].split(',')
                         continue
 
                     if array[0] == "Product":
-                        products = datum[order][array[0]].split(',')
+                        products = datum[order][0][array[1]].split(',')
                         continue
 
                     if not array[3]:
                         continue
-                    print "%s : %s" % (array[0],datum[order][array[0]])
+                    print "%s : %s" % (array[0],datum['Entry'][0][array[1]])
 
             if order == 'Sols':
                 for i, array in enumerate(self.sols_db.data_layout):
@@ -127,7 +129,7 @@ class NvdCve(NvdCveXml, NvdCveDb):
                 for i, array in enumerate(self.loss_type_db.data_layout):
                     if not array[3]:
                         continue
-                    print "%s : %s" % (array[0],datum[order][array[0]])
+                    print "%s : %s" % (array[0],datum[order][array[1]])
             if order == 'Range':
                 for i, array in enumerate(self.range_db.data_layout):
                     if not array[3]:
@@ -139,32 +141,28 @@ class NvdCve(NvdCveXml, NvdCveDb):
                     for i, array in enumerate(self.refs_db.data_layout):
                         if not array[3]:
                             continue
-                        if datum[order][r][array[0]]:
-                            print "%s : %s" % \
-                                    (array[0],datum[order][r][array[0]])
+                        if r[array[1]]:
+                            print "%s : %s" %  (array[0],r[array[1]])
 
             if order == 'Desc':
+                print datum['Desc']
+                print self.desc_db.data_layout
+                print "Boo"
                 for i, array in enumerate(self.desc_db.data_layout):
                     if not array[3]:
                         continue
-                    print "%s : %s" % (array[0],datum[order][array[0]])
+                    print "%s : %s" % (array[0],datum[order][array[1]])
 
             if order == 'Vers':
                 for i in range(0, len(vendors)):
                     versions = []
-                    print "\nVendor: %s Product: %s" % (vendors[i], products[i])
+                    print "Vendor: %s Product: %s" % (vendors[i], products[i])
                     for v in datum['Vers']:
-                        for a, array in enumerate(self.vers_db.data_layout):
-                            if not array[3]:
-                                continue
-                            if datum[order][v]['Product'] == products[i] and datum[order][v]['Vendor'] == vendors[i]:
-                                if datum[order][v][array[0]]:
-                                    if array[0] == 'Num':
-                                        if datum[order][v]['Edition']:
-                                            versions.append(datum[order][v][array[0]]+"-"+datum[order][v]['Edition'])
-                                        else:
-                                            versions.append(datum[order][v][array[0]])
-
+                        if v.edition:
+                            versions.append(v.product+"-"+v.edition+"-"+v.num)
+                        else:
+                            versions.append(v.product+"-"+v.num)
+                            
                     versions.sort()
                     for ver in versions:
                         print "Version: %s" % ver
@@ -175,17 +173,17 @@ class NvdCve(NvdCveXml, NvdCveDb):
         '''
         print "CVE-ID:"
         print "="*30
-        print datum['Entry']['name']
+        print datum['Entry'][0].name
         print "\nDescription"
         print "="*30,
-        print datum['Desc']['Desc']
+        print datum['Desc'].desc
         print "Referneces"
         print "="*30
-        s_refs = sorted(datum['Refs'].keys())
+        s_refs = sorted(datum['Refs'])
         for ref in s_refs:
             print "%s:%s" % \
-                    (datum['Refs'][ref]['Source'].strip('n'),datum['Refs'][ref]['Data'].strip('\n'))
-            print datum['Refs'][ref]['URL']
+                    (ref.source.strip('n'),ref.data.strip('\n'))
+            print ref.url
             print
 
         print "Status"
@@ -198,11 +196,11 @@ class NvdCve(NvdCveXml, NvdCveDb):
         print "="*30
 
     def nvd_display(self, datum):
-        print "%s" %  datum['Entry']['name']
-        print "Summary: %s" % datum['Desc']['Desc'].strip('\n')
-        print "Published: %s" % datum['Entry']['published']
+        print "%s" %  datum['Entry'][0].name
+        print "Summary: %s" % datum['Desc'].desc.strip('\n')
+        print "Published: %s" % datum['Entry'][0].published
         print "CVSS Severity: %s (%s)" % \
-                (datum['Entry']['CVSS_score'], datum['Entry']['severity'])
+                (datum['Entry'][0].CVSS_score, datum['Entry'][0].severity)
 
     def download(self, url):
         import urllib
@@ -248,6 +246,6 @@ class NvdCve(NvdCveXml, NvdCveDb):
             if not os.path.isfile(src):
                 print "No local data, downloading"
                 self.download(url)
-            url = src
-
+            url = src[:-3]
+        print url
         return self.xml_import(url, local)
