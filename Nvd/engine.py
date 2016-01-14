@@ -3,6 +3,7 @@ import sys
 from sqlalchemy import *
 from sqlalchemy import orm
 from sqlalchemy.exc import OperationalError
+
 import sqlalchemy as sa
 
 import config as settings
@@ -63,7 +64,8 @@ class Engine():
             raise
 
         try:
-            sm = orm.sessionmaker(autoflush=True, bind=engine)
+            #sm = orm.sessionmaker(autoflush=True, bind=engine)
+            sm = orm.sessionmaker(bind=engine)
         except:
             raise
 

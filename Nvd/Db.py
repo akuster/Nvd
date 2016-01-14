@@ -163,7 +163,11 @@ class _DB(Engine):
                 self.Session.commit()
                 id = add_obj.id
             except:
+                self.Session.rollback()
                 raise DBErrorLow
+        else:
+            id = id.id
+
         return id
 
     def update(self, **kwargs):
@@ -269,10 +273,10 @@ class Ref(Ref_Db, _DB):
                 self.Session.add(add_obj)
                 self.Session.commit()
                 id = add_obj.id
+            except DBErrorLow::
+                raise DBErrorLow
             except:
                 raise
-        #    except:
-        #        raise DBErrorLow
         return id
 
         
@@ -340,10 +344,10 @@ class Cve(Cve_Db, _DB):
                 self.Session.add(add_obj)
                 self.Session.commit()
                 id = add_obj.id
+            except DBErrorLow:
+                raise DBErrorLow
             except:
                 raise
-        #    except:
-        #        raise DBErrorLow
         return id
 
     def fetchall(self, seq) :
